@@ -1,0 +1,39 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'club.practicaintegral.equilibra'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'club.practicaintegral.equilibra'
+        minSdk 26
+        targetSdk 34
+        // La compilación automática de GitHub pone el número de versión
+        versionCode Integer.parseInt(System.getenv('VERSION_CODE') ?: '1')
+        versionName System.getenv('VERSION_NAME') ?: '1.0'
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('KEYSTORE_FILE') ?: 'sin-clave.p12')
+            storePassword System.getenv('KEYSTORE_PASSWORD')
+            keyAlias 'pasos'
+            keyPassword System.getenv('KEYSTORE_PASSWORD')
+            storeType 'pkcs12'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
