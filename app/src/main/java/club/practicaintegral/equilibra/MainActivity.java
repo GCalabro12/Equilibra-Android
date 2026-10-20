@@ -13,7 +13,17 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.os.CancellationSignal;
 import android.speech.RecognizerIntent;
+import androidx.credentials.CredentialManager;
+import androidx.credentials.CredentialManagerCallback;
+import androidx.credentials.CustomCredential;
+import androidx.credentials.GetCredentialRequest;
+import androidx.credentials.GetCredentialResponse;
+import androidx.credentials.exceptions.GetCredentialCancellationException;
+import androidx.credentials.exceptions.GetCredentialException;
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption;
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 import android.view.Gravity;
 import android.view.View;
 import android.webkit.JavascriptInterface;
@@ -40,6 +50,8 @@ public class MainActivity extends Activity {
     private static final String WEB = "https://gcalabro12.github.io/Equilibra/";
     private static final String HOST = "gcalabro12.github.io";
     private static final int REQ_DICTAR = 42;
+    /** ID de cliente web del proyecto Firebase equilibra-6aff8 (proveedor Google). */
+    private static final String CLIENTE_WEB = "682128349771-a175emei7guudhv3gt08ra5vb3bcuuus.apps.googleusercontent.com";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WebView web;
     private TextView cargando;
@@ -160,6 +172,40 @@ public class MainActivity extends Activity {
         enviarDictado(texto, texto == null ? "No se ha entendido nada. Vuelve a intentarlo." : null);
     }
 
+    /** Entrar con Google dentro de la app: el teléfono enseña sus cuentas de Google y devuelve un token a la web. */
+    private void entrarConGoogle() {
+        try {
+            CredentialManager cm = CredentialManager.create(this);
+            GetCredentialRequest req = new GetCredentialRequest.Builder()
+                    .addCredentialOption(new GetSignInWithGoogleOption.Builder(CLIENTE_WEB).build())
+                    .build();
+            cm.getCredentialAsync(this, req, new CancellationSignal(), getMainExecutor(),
+                    new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
+                        @Override public void onResult(GetCredentialResponse r) {
+                            try {
+                                if (r.getCredential() instanceof CustomCredential
+                                        && GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(r.getCredential().getType())) {
+                                    String token = GoogleIdTokenCredential.createFrom(r.getCredential().getData()).getIdToken();
+                                    enviarGoogle(token, null);
+                                } else enviarGoogle(null, "Google no ha devuelto una cuenta válida.");
+                            } catch (RuntimeException e) { enviarGoogle(null, "No se pudo leer la cuenta de Google: " + e.getMessage()); }
+                        }
+                        @Override public void onError(GetCredentialException e) {
+                            if (e instanceof GetCredentialCancellationException) enviarGoogle(null, "");
+                            else enviarGoogle(null, "No se pudo entrar con Google (" + e.getType() + "). Usa email y PIN.");
+                        }
+                    });
+        } catch (RuntimeException e) {
+            enviarGoogle(null, "No se pudo abrir el inicio de sesión de Google: " + e.getMessage());
+        }
+    }
+
+    private void enviarGoogle(String token, String error) {
+        web.evaluateJavascript("window.nativeGoogle && window.nativeGoogle("
+                + (token == null ? "null" : JSONObject.quote(token)) + ","
+                + (error == null ? "null" : JSONObject.quote(error)) + ")", null);
+    }
+
     private void enviarDictado(String texto, String error) {
         web.evaluateJavascript("window.nativeDictation && window.nativeDictation("
                 + (texto == null ? "null" : JSONObject.quote(texto)) + ","
@@ -182,6 +228,9 @@ public class MainActivity extends Activity {
                 }
             });
         }
+
+        /** Entrar con Google (cuentas del teléfono). Responde con window.nativeGoogle(idToken, error). */
+        @JavascriptInterface public void googleLogin() { runOnUiThread(MainActivity.this::entrarConGoogle); }
 
         @JavascriptInterface public String version() {
             try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
