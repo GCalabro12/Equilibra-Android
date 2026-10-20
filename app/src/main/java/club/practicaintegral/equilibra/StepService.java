@@ -254,8 +254,15 @@ public class StepService extends Service implements SensorEventListener {
 
     @Override public IBinder onBind(Intent intent) { return null; }
 
-    /** Arranca el servicio si ya hay permiso de actividad física. */
+    /** PC & Body-mind tiene preferencia para contar pasos: si está instalada, Equilibra no cuenta. */
+    static boolean pcInstalada(Context c) {
+        try { c.getPackageManager().getPackageInfo("club.practicaintegral.pasos", 0); return true; }
+        catch (Exception e) { return false; }
+    }
+
+    /** Arranca el servicio si ya hay permiso de actividad física (y no está PC & Body-mind; si está, lo para). */
     static void start(Context c) {
+        if (pcInstalada(c)) { c.stopService(new Intent(c, StepService.class)); return; }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                 && c.checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION)
                 != android.content.pm.PackageManager.PERMISSION_GRANTED) return;

@@ -110,6 +110,8 @@ public class MainActivity extends Activity {
 
     /** Pasos: permiso de «Actividad física» (y avisos). Con permiso, el contador arranca y sigue con la pantalla apagada. */
     private void pedirPermisos() {
+        // Si está PC & Body-mind, ella cuenta los pasos: aquí no se pide el permiso y se para el contador propio
+        if (StepService.pcInstalada(this)) { StepService.start(this); return; }
         List<String> faltan = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                 && checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED)
@@ -227,5 +229,15 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface public void askPermissions() { runOnUiThread(MainActivity.this::pedirPermisos); }
+
+        /** ¿Está instalada PC & Body-mind? Entonces es ella la que cuenta los pasos. */
+        @JavascriptInterface public boolean pcInstalada() { return StepService.pcInstalada(MainActivity.this); }
+
+        @JavascriptInterface public void abrirPC() {
+            runOnUiThread(() -> {
+                Intent i = getPackageManager().getLaunchIntentForPackage("club.practicaintegral.pasos");
+                if (i != null) startActivity(i);
+            });
+        }
     }
 }

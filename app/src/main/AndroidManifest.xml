@@ -13,6 +13,11 @@
 
     <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
 
+    <!-- Para saber si PC & Body-mind está instalada (ella tiene preferencia para contar pasos) -->
+    <queries>
+        <package android:name="club.practicaintegral.pasos" />
+    </queries>
+
     <application
         android:label="Equilibra"
         android:icon="@mipmap/ic_launcher"
