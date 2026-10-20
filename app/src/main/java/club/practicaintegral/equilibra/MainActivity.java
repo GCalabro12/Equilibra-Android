@@ -71,7 +71,7 @@ public class MainActivity extends Activity {
         root.addView(web, new FrameLayout.LayoutParams(-1, -1));
 
         cargando = new TextView(this);
-        cargando.setText("Equilibra");
+        cargando.setText("Amable Life");
         cargando.setTextColor(0xFFF4F0FB);
         cargando.setTextSize(30);
         cargando.setGravity(Gravity.CENTER);
@@ -136,13 +136,13 @@ public class MainActivity extends Activity {
     private void descargarApk(Uri u) {
         try {
             DownloadManager.Request r = new DownloadManager.Request(u);
-            r.setTitle("Equilibra");
-            r.setDescription("Nueva versión de Equilibra");
+            r.setTitle("Amable Life");
+            r.setDescription("Nueva versión de Amable Life");
             r.setMimeType("application/vnd.android.package-archive");
             r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "Equilibra.apk");
             ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(r);
-            Toast.makeText(this, "Descargando Equilibra… Cuando termine, toca la notificación para instalarla", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Descargando Amable Life… Cuando termine, toca la notificación para instalarla", Toast.LENGTH_LONG).show();
         } catch (RuntimeException e) {
             try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (RuntimeException ignored) {}
         }

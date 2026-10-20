@@ -20,7 +20,7 @@
     </queries>
 
     <application
-        android:label="Equilibra"
+        android:label="Amable Life"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:allowBackup="true"

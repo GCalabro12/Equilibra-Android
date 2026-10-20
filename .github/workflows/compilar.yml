@@ -43,7 +43,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: app-${{ github.run_number }}
-          name: Equilibra v${{ env.VERSION_NAME }}
+          name: Amable Life v${{ env.VERSION_NAME }}
           body: |
             Descarga **Equilibra.apk** en el móvil y ábrelo para instalar o actualizar.
             Enlace fijo a la última versión: https://github.com/${{ github.repository }}/releases/latest/download/Equilibra.apk
