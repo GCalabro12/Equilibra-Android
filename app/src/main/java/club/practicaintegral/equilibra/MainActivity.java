@@ -1,13 +1,18 @@
 package club.practicaintegral.equilibra;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.net.http.SslError;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.speech.RecognizerIntent;
 import android.view.Gravity;
 import android.view.View;
@@ -24,6 +29,7 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * App Android de Equilibra: muestra la web de siempre (https://gcalabro12.github.io/Equilibra/)
@@ -99,6 +105,37 @@ public class MainActivity extends Activity {
         });
         web.loadUrl(WEB);
         handler.postDelayed(() -> { if (!cargada) cargando.setVisibility(View.GONE); }, 15000);
+        pedirPermisos();
+    }
+
+    /** Pasos: permiso de «Actividad física» (y avisos). Con permiso, el contador arranca y sigue con la pantalla apagada. */
+    private void pedirPermisos() {
+        List<String> faltan = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                && checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED)
+            faltan.add(Manifest.permission.ACTIVITY_RECOGNITION);
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            faltan.add(Manifest.permission.POST_NOTIFICATIONS);
+        if (faltan.isEmpty()) StepService.start(this);
+        else requestPermissions(faltan.toArray(new String[0]), 1);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
+        StepService.start(this);
+        web.evaluateJavascript("window.nativeRefresh && window.nativeRefresh()", null);
+    }
+
+    private boolean permisoPasos() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                || checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void alServicio(Intent i) {
+        if (!permisoPasos()) return;
+        i.setClass(this, StepService.class);
+        try { startForegroundService(i); } catch (RuntimeException ignored) {}
     }
 
     @Override
@@ -148,5 +185,47 @@ public class MainActivity extends Activity {
             try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
             catch (Exception e) { return "?"; }
         }
+
+        // ---------- Pasos (podómetro del teléfono, también con la pantalla apagada) ----------
+        @JavascriptInterface public String getToday() { return StepStore.todayJson(MainActivity.this); }
+
+        @JavascriptInterface public String getHistory() { return StepStore.historyJson(MainActivity.this); }
+
+        @JavascriptInterface public void setConfig(String json) {
+            StepStore.setConfig(MainActivity.this, json);
+            alServicio(new Intent(StepService.ACTION_REFRESH));
+        }
+
+        /** Habla en voz alta con la voz del teléfono (también con la pantalla apagada). */
+        @JavascriptInterface public void speak(String text) {
+            alServicio(new Intent(StepService.ACTION_SPEAK).putExtra("text", text));
+        }
+
+        @JavascriptInterface public boolean permissionOk() { return permisoPasos(); }
+
+        @JavascriptInterface public boolean hasSensor() { return StepService.hasSensor; }
+
+        @JavascriptInterface public boolean batteryOk() {
+            PowerManager pm = getSystemService(PowerManager.class);
+            return pm.isIgnoringBatteryOptimizations(getPackageName());
+        }
+
+        @JavascriptInterface public void openBatterySettings() {
+            runOnUiThread(() -> {
+                try {
+                    startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:" + getPackageName())));
+                } catch (RuntimeException e) {
+                    startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+                }
+            });
+        }
+
+        @JavascriptInterface public void openAppSettings() {
+            runOnUiThread(() -> startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName()))));
+        }
+
+        @JavascriptInterface public void askPermissions() { runOnUiThread(MainActivity.this::pedirPermisos); }
     }
 }
