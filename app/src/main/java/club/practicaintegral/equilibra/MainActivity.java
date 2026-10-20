@@ -140,7 +140,7 @@ public class MainActivity extends Activity {
             r.setDescription("Nueva versión de Amable Life");
             r.setMimeType("application/vnd.android.package-archive");
             r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-            r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "Equilibra.apk");
+            r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "Amable Life.apk");
             ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(r);
             Toast.makeText(this, "Descargando Amable Life… Cuando termine, toca la notificación para instalarla", Toast.LENGTH_LONG).show();
         } catch (RuntimeException e) {
