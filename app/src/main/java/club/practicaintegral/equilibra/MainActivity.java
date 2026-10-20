@@ -2,6 +2,9 @@ package club.practicaintegral.equilibra;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.DownloadManager;
+import android.os.Environment;
+import android.widget.Toast;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -75,6 +78,13 @@ public class MainActivity extends Activity {
         cargando.setBackgroundColor(0xFF140F26);
         root.addView(cargando, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
+        // Que la web no quede debajo de las barras del sistema (en algunos móviles la barra de abajo tapaba el menú)
+        root.setOnApplyWindowInsetsListener((v, ins) -> {
+            v.setPadding(ins.getSystemWindowInsetLeft(), ins.getSystemWindowInsetTop(),
+                    ins.getSystemWindowInsetRight(), ins.getSystemWindowInsetBottom());
+            return ins;
+        });
+        root.requestApplyInsets();
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -88,6 +98,8 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri u = req.getUrl();
+                // Versión nueva de la app: se descarga aquí mismo (los navegadores se quedaban trabados al 100 %)
+                if (u.getPath() != null && u.getPath().endsWith(".apk")) { descargarApk(u); return true; }
                 if (HOST.equals(u.getHost()) || "file".equals(u.getScheme())) return false;
                 // Inicio de sesión de Firebase: se queda dentro; el resto de enlaces se abren fuera
                 if (u.getHost() != null && u.getHost().endsWith("firebaseapp.com")) return false;
@@ -118,6 +130,22 @@ public class MainActivity extends Activity {
         web.loadUrl(WEB);
         handler.postDelayed(() -> { if (!cargada) cargando.setVisibility(View.GONE); }, 15000);
         pedirPermisos();
+    }
+
+    /** Descarga el APK con el gestor de descargas de Android; al terminar, se toca la notificación para instalar. */
+    private void descargarApk(Uri u) {
+        try {
+            DownloadManager.Request r = new DownloadManager.Request(u);
+            r.setTitle("Equilibra");
+            r.setDescription("Nueva versión de Equilibra");
+            r.setMimeType("application/vnd.android.package-archive");
+            r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "Equilibra.apk");
+            ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(r);
+            Toast.makeText(this, "Descargando Equilibra… Cuando termine, toca la notificación para instalarla", Toast.LENGTH_LONG).show();
+        } catch (RuntimeException e) {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (RuntimeException ignored) {}
+        }
     }
 
     /** Pasos: permiso de «Actividad física» (y avisos). Con permiso, el contador arranca y sigue con la pantalla apagada. */
