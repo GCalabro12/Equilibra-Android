@@ -6,6 +6,10 @@ import android.app.DownloadManager;
 import android.os.Environment;
 import android.widget.Toast;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.database.Cursor;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -141,11 +145,49 @@ public class MainActivity extends Activity {
             r.setMimeType("application/vnd.android.package-archive");
             r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
             r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "Amable Life.apk");
-            ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(r);
-            Toast.makeText(this, "Descargando Amable Life… Cuando termine, toca la notificación para instalarla", Toast.LENGTH_LONG).show();
+            DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+            idDescarga = dm.enqueue(r);
+            escucharDescarga(u);
+            Toast.makeText(this, "Descargando Amable Life… Al terminar se abrirá el instalador", Toast.LENGTH_LONG).show();
         } catch (RuntimeException e) {
             try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (RuntimeException ignored) {}
         }
+    }
+
+    private long idDescarga = -1;
+    private BroadcastReceiver finDescarga;
+
+    /** Al acabar la descarga, abre el instalador directamente (en algunos móviles la notificación no aparece). */
+    private void escucharDescarga(Uri origen) {
+        if (finDescarga != null) return;
+        finDescarga = new BroadcastReceiver() {
+            @Override public void onReceive(Context ctx, Intent it) {
+                long id = it.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                if (id != idDescarga) return;
+                DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                int estado = -1;
+                try (Cursor c = dm.query(new DownloadManager.Query().setFilterById(id))) {
+                    if (c != null && c.moveToFirst()) estado = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+                } catch (RuntimeException ignored) {}
+                if (estado == DownloadManager.STATUS_SUCCESSFUL) {
+                    try {
+                        Uri apk = dm.getUriForDownloadedFile(id);
+                        Intent inst = new Intent(Intent.ACTION_VIEW);
+                        inst.setDataAndType(apk, "application/vnd.android.package-archive");
+                        inst.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(inst);
+                    } catch (RuntimeException e) {
+                        Toast.makeText(MainActivity.this, "Descargada en «Descargas»: abre «Amable Life.apk» para instalarla", Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "No se pudo descargar. Lo abro en el navegador", Toast.LENGTH_LONG).show();
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, origen)); } catch (RuntimeException ignored) {}
+                }
+            }
+        };
+        IntentFilter f = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(finDescarga, f, Context.RECEIVER_EXPORTED);
+        else registerReceiver(finDescarga, f);
     }
 
     /** Pasos: permiso de «Actividad física» (y avisos). Con permiso, el contador arranca y sigue con la pantalla apagada. */
